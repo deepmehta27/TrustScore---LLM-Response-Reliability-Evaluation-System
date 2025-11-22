@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+ragas
+openai
+datasets
+aiohttp
+pydantic

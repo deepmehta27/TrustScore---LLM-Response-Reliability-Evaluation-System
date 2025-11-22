@@ -1,0 +1,20 @@
+# OS/Editor
+.DS_Store
+.idea/
+.vscode/
+
+# Python
+backend/__pycache__/
+backend/.venv/
+backend/venv/
+backend/.env
+backend/data/results.json
+
+# Node/Next.js
+frontend/node_modules/
+frontend/.next/
+frontend/.env
+frontend/.env.local
+frontend/.env.development
+frontend/.env.production
+
