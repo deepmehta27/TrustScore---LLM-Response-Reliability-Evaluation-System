@@ -47,10 +47,27 @@ except Exception:
 
 app = FastAPI(title="TrustScore API", version="0.1.0")
 
-# Allow local frontend to access the backend
+# CORS configuration - allows frontend to access the backend
+# In production, replace "*" with your actual frontend URL
+allowed_origins = [
+    "http://localhost:3000",  # Local development
+]
+
+# Add production frontend URL from environment variable
+frontend_url = os.getenv("FRONTEND_URL")
+if frontend_url:
+    allowed_origins.append(frontend_url)
+    # Also allow Vercel preview deployments
+    if "vercel.app" in frontend_url:
+        allowed_origins.append("https://*.vercel.app")
+
+# For development, allow all origins (remove in production)
+if os.getenv("ENVIRONMENT") != "production":
+    allowed_origins = ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -183,10 +200,10 @@ async def generate_model_response(query: str, model: str) -> str:
     # Debug: Log which API keys are available (without showing the actual keys)
     if model == "deepseek/deepseek-chat-v3-0324:free":
         if not has_openrouter:
-            return f"[ERROR] OpenRouter API key not found. Please set OPENROUTER_API_KEY in backend/.env file. Key present: {bool(openrouter_key)}"
+            return f"[ERROR] OpenRouter API key not found. Please set OPENROUTER_API_KEY in backend/.env file. Key present: {bool(openrouter_key)}, httpx available: {httpx is not None}"
     elif model == "claude-sonnet-4-5-20250929":
         if not has_anthropic:
-            return f"[ERROR] Anthropic API key not found. Please set ANTHROPIC_API_KEY in backend/.env file. Key present: {bool(anthropic_key)}"
+            return f"[ERROR] Anthropic API key not found. Please set ANTHROPIC_API_KEY in backend/.env file. Key present: {bool(anthropic_key)}, Anthropic module available: {Anthropic is not None}"
     
     if not (has_openai or has_gemini or has_openrouter or has_anthropic):
         return f"[Stubbed response for {model}] {query}"
@@ -232,30 +249,28 @@ async def generate_model_response(query: str, model: str) -> str:
             
             return await _openrouter_call() or ""
         
-        # Handle Claude 3.5 Sonnet (latest version)
+        # Handle Claude Sonnet models
         elif model == "claude-sonnet-4-5-20250929" and has_anthropic:
-            anthropic_client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+            anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+            if not anthropic_key:
+                return "[ERROR] ANTHROPIC_API_KEY environment variable is empty"
+            
+            anthropic_client = Anthropic(api_key=anthropic_key)
             
             def _anthropic_call():
-                # Use the latest Claude 3.5 Sonnet model
-                # Common model IDs: claude-3-5-sonnet-20241022, claude-3-5-sonnet-20240620
-                try:
-                    message = anthropic_client.messages.create(
-                        model="claude-3-5-sonnet-20241022",  # Latest stable version
-                        max_tokens=1024,
-                        messages=[
-                            {
-                                "role": "user",
-                                "content": query
-                            }
-                        ]
-                    )
-                    return message
-                except Exception as e:
-                    # Try fallback to older version if latest doesn't work
+                # Try multiple Claude model IDs in order of preference
+                # Using official Claude Sonnet 4.5 model IDs
+                model_ids = [
+                    "claude-sonnet-4-5-20250929",  # Official Claude Sonnet 4.5 (from comparison table)
+                    "claude-sonnet-4-5",  # API alias for Claude Sonnet 4.5
+                    "claude-3-5-sonnet-20241022",  # Fallback to Claude 3.5 Sonnet
+                ]
+                
+                last_error = None
+                for model_id in model_ids:
                     try:
                         message = anthropic_client.messages.create(
-                            model="claude-3-5-sonnet-20240620",
+                            model=model_id,
                             max_tokens=1024,
                             messages=[
                                 {
@@ -265,11 +280,18 @@ async def generate_model_response(query: str, model: str) -> str:
                             ]
                         )
                         return message
-                    except Exception as e2:
-                        raise Exception(f"Anthropic API error: {str(e2)}")
+                    except Exception as e:
+                        last_error = e
+                        continue  # Try next model ID
+                
+                # If all models failed, raise the last error
+                raise Exception(f"Anthropic API error with all model IDs: {str(last_error)}")
             
-            message = await asyncio.to_thread(_anthropic_call)
-            return message.content[0].text if message.content else ""
+            try:
+                message = await asyncio.to_thread(_anthropic_call)
+                return message.content[0].text if message.content else ""
+            except Exception as e:
+                return f"[ERROR] Anthropic API call failed: {str(e)}"
         
         # Handle Gemini models
         elif model.startswith("gemini") and has_gemini:

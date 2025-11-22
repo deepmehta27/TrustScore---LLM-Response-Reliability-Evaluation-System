@@ -55,10 +55,10 @@ export default function ScoreCard({
             <div className="flex items-baseline gap-3">
               <span className="text-sm font-medium text-slate-400">TrustScore</span>
               <div className={cn(
-                "inline-flex items-center justify-center w-20 h-20 rounded-xl font-bold text-4xl",
+                "inline-flex items-center justify-center min-w-[90px] px-5 py-3 rounded-xl font-bold text-5xl leading-none",
                 getScoreColor(trustScore)
               )}>
-                {trustScore}
+                {typeof trustScore === 'number' ? trustScore.toFixed(1) : trustScore}
               </div>
               <Badge 
                 className={cn("text-sm font-semibold", getScoreBg(trustScore))}
