@@ -14,7 +14,7 @@ from evaluators import (
     evaluate_toxicity,
     evaluate_factual,
 )
-from scorer import PRESETS, calculate_weighted_score
+from .scorer import PRESETS, calculate_weighted_score
 
 try:
     from openai import OpenAI
