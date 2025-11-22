@@ -6,26 +6,15 @@ from typing import List, Dict
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-try:
-    from .models import EvalRequest, EvalResponse, CompareRequest, CompareResponse, ModelComparison, MetricResult
-    from .evaluators import (
-        evaluate_faithfulness,
-        evaluate_relevance,
-        evaluate_bias,
-        evaluate_toxicity,
-        evaluate_factual,
-    )
-    from .scorer import PRESETS, calculate_weighted_score
-except ImportError:
-    from models import EvalRequest, EvalResponse, CompareRequest, CompareResponse, ModelComparison, MetricResult
-    from evaluators import (
-        evaluate_faithfulness,
-        evaluate_relevance,
-        evaluate_bias,
-        evaluate_toxicity,
-        evaluate_factual,
-    )
-    from scorer import PRESETS, calculate_weighted_score
+from models import EvalRequest, EvalResponse, CompareRequest, CompareResponse, ModelComparison, MetricResult
+from evaluators import (
+    evaluate_faithfulness,
+    evaluate_relevance,
+    evaluate_bias,
+    evaluate_toxicity,
+    evaluate_factual,
+)
+from scorer import PRESETS, calculate_weighted_score
 
 try:
     from openai import OpenAI
@@ -37,10 +26,6 @@ try:
 except Exception:
     genai = None
 
-try:
-    from anthropic import Anthropic
-except Exception:
-    Anthropic = None
 
 try:
     import httpx
@@ -204,22 +189,17 @@ async def generate_model_response(query: str, model: str) -> str:
     openai_key = os.getenv("OPENAI_API_KEY")
     gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
     openrouter_key = os.getenv("OPENROUTER_API_KEY")
-    anthropic_key = os.getenv("ANTHROPIC_API_KEY")
     
     has_openai = OpenAI and openai_key
     has_gemini = genai and gemini_key
     has_openrouter = httpx and openrouter_key
-    has_anthropic = Anthropic and anthropic_key
     
     # Debug: Log which API keys are available (without showing the actual keys)
     if model == "deepseek/deepseek-chat-v3-0324:free":
         if not has_openrouter:
             return f"[ERROR] OpenRouter API key not found. Please set OPENROUTER_API_KEY in backend/.env file. Key present: {bool(openrouter_key)}, httpx available: {httpx is not None}"
-    elif model == "claude-sonnet-4-5-20250929":
-        if not has_anthropic:
-            return f"[ERROR] Anthropic API key not found. Please set ANTHROPIC_API_KEY in backend/.env file. Key present: {bool(anthropic_key)}, Anthropic module available: {Anthropic is not None}"
     
-    if not (has_openai or has_gemini or has_openrouter or has_anthropic):
+    if not (has_openai or has_gemini or has_openrouter):
         return f"[Stubbed response for {model}] {query}"
     
     try:
@@ -264,7 +244,7 @@ async def generate_model_response(query: str, model: str) -> str:
             return await _openrouter_call() or ""
         
         # Handle Claude Sonnet models
-        elif model == "claude-sonnet-4-5-20250929" and has_anthropic:
+        elif False:
             anthropic_key = os.getenv("ANTHROPIC_API_KEY")
             if not anthropic_key:
                 return "[ERROR] ANTHROPIC_API_KEY environment variable is empty"

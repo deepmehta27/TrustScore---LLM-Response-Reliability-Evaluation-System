@@ -1,8 +1,8 @@
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-  const base = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "https://trustscore-llm-response-reliability-evaluation-production.up.railway.app";
-    
+  const base = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+
     const response = await fetch(`${base}/compare`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

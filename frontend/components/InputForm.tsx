@@ -37,7 +37,6 @@ const AVAILABLE_MODELS = [
   { id: "gpt-5.1", label: "GPT-5.1", provider: "OpenAI" },
   { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash", provider: "Google" },
   { id: "deepseek/deepseek-chat-v3-0324:free", label: "DeepSeek Chat", provider: "OpenRouter" },
-  { id: "claude-sonnet-4-5-20250929", label: "Claude 3.5 Sonnet", provider: "Anthropic" },
 ];
 
 export default function InputForm({ isLoading, onCompare }: Props) {

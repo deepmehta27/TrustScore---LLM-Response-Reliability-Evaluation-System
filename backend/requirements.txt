@@ -6,6 +6,5 @@ datasets
 aiohttp
 pydantic
 google-genai
-anthropic
 httpx
 python-dotenv
