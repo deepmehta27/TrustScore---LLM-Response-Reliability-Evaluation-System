@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
 
 
@@ -33,8 +33,8 @@ class ModelComparison(BaseModel):
     response: str
     trust_score: float
     metrics: List[MetricResult]
-    error: str | None = None
-    explanation: str | None = None
+    error: Optional[str] = None
+    explanation: Optional[str] = None
 
 
 class CompareResponse(BaseModel):

@@ -6,15 +6,15 @@ from typing import List, Dict
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from .models import EvalRequest, EvalResponse, CompareRequest, CompareResponse, ModelComparison, MetricResult
-from .evaluators import (
+from models import EvalRequest, EvalResponse, CompareRequest, CompareResponse, ModelComparison, MetricResult
+from evaluators import (
     evaluate_faithfulness,
     evaluate_relevance,
     evaluate_bias,
     evaluate_toxicity,
     evaluate_factual,
 )
-from .scorer import PRESETS, calculate_weighted_score
+from scorer import PRESETS, calculate_weighted_score
 
 try:
     from openai import OpenAI
