@@ -37,8 +37,10 @@ except Exception:
     httpx = None
 
 try:
-    import dotenv
-    dotenv.load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+    from dotenv import load_dotenv
+    env_path = os.path.join(os.path.dirname(__file__), ".env")
+    if os.path.exists(env_path):
+        load_dotenv(env_path, override=False)
 except Exception:
     pass
 
@@ -168,10 +170,23 @@ async def evaluate_response(request: EvalRequest):
 
 async def generate_model_response(query: str, model: str) -> str:
     # Check if we have any API keys available
-    has_openai = OpenAI and os.getenv("OPENAI_API_KEY")
-    has_gemini = genai and (os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"))
-    has_openrouter = httpx and os.getenv("OPENROUTER_API_KEY")
-    has_anthropic = Anthropic and os.getenv("ANTHROPIC_API_KEY")
+    openai_key = os.getenv("OPENAI_API_KEY")
+    gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+    openrouter_key = os.getenv("OPENROUTER_API_KEY")
+    anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+    
+    has_openai = OpenAI and openai_key
+    has_gemini = genai and gemini_key
+    has_openrouter = httpx and openrouter_key
+    has_anthropic = Anthropic and anthropic_key
+    
+    # Debug: Log which API keys are available (without showing the actual keys)
+    if model == "deepseek/deepseek-chat-v3-0324:free":
+        if not has_openrouter:
+            return f"[ERROR] OpenRouter API key not found. Please set OPENROUTER_API_KEY in backend/.env file. Key present: {bool(openrouter_key)}"
+    elif model == "claude-sonnet-4-5-20250929":
+        if not has_anthropic:
+            return f"[ERROR] Anthropic API key not found. Please set ANTHROPIC_API_KEY in backend/.env file. Key present: {bool(anthropic_key)}"
     
     if not (has_openai or has_gemini or has_openrouter or has_anthropic):
         return f"[Stubbed response for {model}] {query}"
@@ -180,48 +195,78 @@ async def generate_model_response(query: str, model: str) -> str:
         # Handle OpenRouter models (DeepSeek) via HTTP API
         if model == "deepseek/deepseek-chat-v3-0324:free" and has_openrouter:
             async def _openrouter_call():
-                async with httpx.AsyncClient() as client:
-                    response = await client.post(
-                        "https://openrouter.ai/api/v1/chat/completions",
-                        headers={
-                            "Authorization": f"Bearer {os.getenv('OPENROUTER_API_KEY')}",
-                            "Content-Type": "application/json",
-                            "HTTP-Referer": os.getenv("SITE_URL", "http://localhost:3000"),
-                            "X-Title": os.getenv("SITE_NAME", "TrustScore"),
-                        },
-                        json={
-                            "model": "deepseek/deepseek-chat-v3-0324:free",
-                            "messages": [
-                                {
-                                    "role": "user",
-                                    "content": query,
-                                },
-                            ],
-                        },
-                        timeout=60.0,
-                    )
-                    response.raise_for_status()
-                    data = response.json()
-                    return data["choices"][0]["message"]["content"]
+                try:
+                    async with httpx.AsyncClient() as client:
+                        # Try the free model first, fallback to regular if needed
+                        model_id = "deepseek/deepseek-chat"
+                        response = await client.post(
+                            "https://openrouter.ai/api/v1/chat/completions",
+                            headers={
+                                "Authorization": f"Bearer {os.getenv('OPENROUTER_API_KEY')}",
+                                "Content-Type": "application/json",
+                                "HTTP-Referer": os.getenv("SITE_URL", "http://localhost:3000"),
+                                "X-Title": os.getenv("SITE_NAME", "TrustScore"),
+                            },
+                            json={
+                                "model": model_id,
+                                "messages": [
+                                    {
+                                        "role": "user",
+                                        "content": query,
+                                    },
+                                ],
+                            },
+                            timeout=60.0,
+                        )
+                        response.raise_for_status()
+                        data = response.json()
+                        return data["choices"][0]["message"]["content"]
+                except httpx.HTTPStatusError as e:
+                    error_detail = ""
+                    try:
+                        error_data = e.response.json()
+                        error_detail = str(error_data)
+                    except:
+                        error_detail = e.response.text
+                    raise Exception(f"OpenRouter API error ({e.response.status_code}): {error_detail}")
             
             return await _openrouter_call() or ""
         
-        # Handle Claude 4.5 Sonnet
+        # Handle Claude 3.5 Sonnet (latest version)
         elif model == "claude-sonnet-4-5-20250929" and has_anthropic:
             anthropic_client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
             
             def _anthropic_call():
-                message = anthropic_client.messages.create(
-                    model="claude-sonnet-4-5-20250929",
-                    max_tokens=1024,
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": query
-                        }
-                    ]
-                )
-                return message
+                # Use the latest Claude 3.5 Sonnet model
+                # Common model IDs: claude-3-5-sonnet-20241022, claude-3-5-sonnet-20240620
+                try:
+                    message = anthropic_client.messages.create(
+                        model="claude-3-5-sonnet-20241022",  # Latest stable version
+                        max_tokens=1024,
+                        messages=[
+                            {
+                                "role": "user",
+                                "content": query
+                            }
+                        ]
+                    )
+                    return message
+                except Exception as e:
+                    # Try fallback to older version if latest doesn't work
+                    try:
+                        message = anthropic_client.messages.create(
+                            model="claude-3-5-sonnet-20240620",
+                            max_tokens=1024,
+                            messages=[
+                                {
+                                    "role": "user",
+                                    "content": query
+                                }
+                            ]
+                        )
+                        return message
+                    except Exception as e2:
+                        raise Exception(f"Anthropic API error: {str(e2)}")
             
             message = await asyncio.to_thread(_anthropic_call)
             return message.content[0].text if message.content else ""
