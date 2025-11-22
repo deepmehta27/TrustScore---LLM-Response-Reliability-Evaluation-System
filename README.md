@@ -436,6 +436,4 @@ For issues, questions, or contributions, please open an issue on [GitHub](https:
 
 **Built with ❤️ for Responsible AI**
 
-[⭐ Star this repo](https://github.com/deepmehta27/TrustScore---LLM-Response-Reliability-Evaluation-System) if you find it helpful!
-
 </div>
