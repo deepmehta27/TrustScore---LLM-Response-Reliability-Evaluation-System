@@ -1,7 +1,7 @@
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-  const base = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+  const base = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "https://trustscore-llm-response-reliability.onrender.com";
 
     const response = await fetch(`${base}/compare`, {
       method: "POST",
