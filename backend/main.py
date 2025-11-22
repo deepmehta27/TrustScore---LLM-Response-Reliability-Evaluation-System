@@ -6,15 +6,15 @@ from typing import List, Dict
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from models import EvalRequest, EvalResponse, CompareRequest, CompareResponse, ModelComparison, MetricResult
-from evaluators import (
+from .models import EvalRequest, EvalResponse, CompareRequest, CompareResponse, ModelComparison, MetricResult
+from .evaluators import (
     evaluate_faithfulness,
     evaluate_relevance,
     evaluate_bias,
     evaluate_toxicity,
     evaluate_factual,
 )
-from scorer import PRESETS, calculate_weighted_score
+from .scorer import PRESETS, calculate_weighted_score
 
 try:
     from openai import OpenAI
@@ -50,8 +50,11 @@ app = FastAPI(title="TrustScore API", version="0.1.0")
 # CORS configuration - allows frontend to access the backend
 # In production, replace "*" with your actual frontend URL
 allowed_origins = [
-    "http://localhost:3000",  # Local development
+    "http://localhost:3000",
+    "https://trust-score-llm-response-reliabilit.vercel.app",  # Your frontend
+    "*"  # Allow all for demo
 ]
+
 
 # Add production frontend URL from environment variable
 frontend_url = os.getenv("FRONTEND_URL")
