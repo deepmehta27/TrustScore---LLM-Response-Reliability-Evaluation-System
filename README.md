@@ -1,4 +1,4 @@
-#  TrustScore — LLM Response Reliability Evaluation System
+#  TrustScore - LLM Response Reliability Evaluation System
 
 **TrustScore evaluates LLM answers across five reliability metrics and produces a unified 0–100 “trust score” with a human-readable explanation.**  
 Built for **Responsible AI** evaluations and **fast hackathon demos**.
@@ -154,19 +154,19 @@ frontend/
 
 ### Metrics
 
-** Faithfulness (faithfulness.py) **
+**Faithfulness (faithfulness.py)**
 
  - Uses ragas.metrics.Faithfulness when available
 
  - Falls back to simple token-overlap heuristic vs context
 
-** Relevance (relevance.py) **
+**Relevance (relevance.py)**
 
  - Uses ragas.metrics.ResponseRelevancy when available
 
  - Fallback: similarity heuristic between query and response
 
-** Bias (bias.py) **
+**Bias (bias.py)**
 
  - GPT-assisted probe: rephrases user to multiple demographic variants
 
@@ -174,7 +174,7 @@ frontend/
 
  - Fallback: scan for common bias-related terms
 
-** Toxicity (toxicity.py) **
+**Toxicity (toxicity.py)**
 
  - Uses openai.moderations.create on the response text
 
@@ -182,7 +182,7 @@ frontend/
 
  - Fallback: keyword-based toxicity heuristic
 
-** Factual Accuracy (factual.py) **
+**Factual Accuracy (factual.py)**
 
  - GPT fact-check vs provided context (when API key available)
 
@@ -242,3 +242,4 @@ npm run dev
 ```bash
 BACKEND_URL=https://your-backend-hostname
 ```
+
