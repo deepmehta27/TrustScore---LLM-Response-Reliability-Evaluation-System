@@ -27,6 +27,16 @@ except Exception:
     genai = None
 
 try:
+    from anthropic import Anthropic
+except Exception:
+    Anthropic = None
+
+try:
+    import httpx
+except Exception:
+    httpx = None
+
+try:
     import dotenv
     dotenv.load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 except Exception:
@@ -157,10 +167,67 @@ async def evaluate_response(request: EvalRequest):
 
 
 async def generate_model_response(query: str, model: str) -> str:
-    if not (OpenAI and os.getenv("OPENAI_API_KEY")) and not (genai and os.getenv("GEMINI_API_KEY")):
+    # Check if we have any API keys available
+    has_openai = OpenAI and os.getenv("OPENAI_API_KEY")
+    has_gemini = genai and (os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"))
+    has_openrouter = httpx and os.getenv("OPENROUTER_API_KEY")
+    has_anthropic = Anthropic and os.getenv("ANTHROPIC_API_KEY")
+    
+    if not (has_openai or has_gemini or has_openrouter or has_anthropic):
         return f"[Stubbed response for {model}] {query}"
+    
     try:
-        if model.startswith("gemini") and genai and (os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")):
+        # Handle OpenRouter models (DeepSeek) via HTTP API
+        if model == "deepseek/deepseek-chat-v3-0324:free" and has_openrouter:
+            async def _openrouter_call():
+                async with httpx.AsyncClient() as client:
+                    response = await client.post(
+                        "https://openrouter.ai/api/v1/chat/completions",
+                        headers={
+                            "Authorization": f"Bearer {os.getenv('OPENROUTER_API_KEY')}",
+                            "Content-Type": "application/json",
+                            "HTTP-Referer": os.getenv("SITE_URL", "http://localhost:3000"),
+                            "X-Title": os.getenv("SITE_NAME", "TrustScore"),
+                        },
+                        json={
+                            "model": "deepseek/deepseek-chat-v3-0324:free",
+                            "messages": [
+                                {
+                                    "role": "user",
+                                    "content": query,
+                                },
+                            ],
+                        },
+                        timeout=60.0,
+                    )
+                    response.raise_for_status()
+                    data = response.json()
+                    return data["choices"][0]["message"]["content"]
+            
+            return await _openrouter_call() or ""
+        
+        # Handle Claude 4.5 Sonnet
+        elif model == "claude-sonnet-4-5-20250929" and has_anthropic:
+            anthropic_client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+            
+            def _anthropic_call():
+                message = anthropic_client.messages.create(
+                    model="claude-sonnet-4-5-20250929",
+                    max_tokens=1024,
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": query
+                        }
+                    ]
+                )
+                return message
+            
+            message = await asyncio.to_thread(_anthropic_call)
+            return message.content[0].text if message.content else ""
+        
+        # Handle Gemini models
+        elif model.startswith("gemini") and has_gemini:
             api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
             gclient = genai.Client(api_key=api_key) if api_key else genai.Client()
 
@@ -182,7 +249,9 @@ async def generate_model_response(query: str, model: str) -> str:
                 except Exception:
                     pass
             return text or ""
-        else:
+        
+        # Handle OpenAI models (GPT-4.1, GPT-5.1, etc.)
+        elif has_openai:
             oclient = OpenAI()
 
             def _ocall():
@@ -210,6 +279,8 @@ async def generate_model_response(query: str, model: str) -> str:
 
             completion = await asyncio.to_thread(_ocall)
             return completion.choices[0].message.content or ""
+        else:
+            return f"[ERROR] No API key available for model: {model}"
     except Exception as e:
         return f"[ERROR] {e.__class__.__name__}: {e}"
 

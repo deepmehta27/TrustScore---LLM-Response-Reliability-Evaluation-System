@@ -1,3 +1,9 @@
+"use client";
+import { Card, CardContent, CardHeader } from "./ui/card";
+import { Badge } from "./ui/badge";
+import { Trophy, AlertCircle } from "lucide-react";
+import { cn } from "../lib/cn";
+
 type Metric = { name: string; score: number; description: string };
 
 type Row = {
@@ -20,58 +26,112 @@ export default function ComparisonTable({ data }: { data: { results: Row[] } }) 
   const maxTox = rows.length ? maxBy(metricIndex("Toxicity")) : 0;
   const maxFact = rows.length ? maxBy(metricIndex("Factual")) : 0;
 
-  const cellStyle = (value: number, max: number): React.CSSProperties => ({
-    padding: 8,
-    borderBottom: "1px solid #1f2937",
-    background: value === max ? "#0ea5e9" : "transparent",
-    color: value === max ? "#0f172a" : "#e2e8f0",
-    fontWeight: value === max ? 800 : 500,
-    textAlign: "center",
-  });
+  const winnerModel = rows.find((r) => r.trust_score === maxTrust);
+
+  const getCellStyle = (value: number, max: number): string => {
+    if (value === max && max > 0) {
+      return "bg-[#10b981]/20 text-[#10b981] font-bold border-[#10b981]/30";
+    }
+    return "text-slate-300";
+  };
+
+  const getScoreColor = (score: number) => {
+    if (score >= 80) return "text-[#10b981]";
+    if (score >= 60) return "text-[#fbbf24]";
+    return "text-[#ef4444]";
+  };
+
+  if (rows.length === 0) return null;
 
   return (
-    <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
-      <div className="font-bold mb-2">Model Comparison</div>
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse">
-          <thead>
-            <tr className="text-center">
-              <th className="p-2 border-b border-slate-700">Model</th>
-              <th className="p-2 border-b border-slate-700">TrustScore</th>
-              <th className="p-2 border-b border-slate-700">Faithfulness</th>
-              <th className="p-2 border-b border-slate-700">Relevance</th>
-              <th className="p-2 border-b border-slate-700">Bias</th>
-              <th className="p-2 border-b border-slate-700">Toxicity</th>
-              <th className="p-2 border-b border-slate-700">Factual</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.model}>
-                <td className="p-2 border-b border-slate-700">
-                  {r.model}
-                  {r.error && (
-                    <span className="ml-2 px-2 py-1 rounded bg-red-500 text-slate-900 font-bold">Error</span>
-                  )}
-                </td>
-                <td className="p-2 border-b border-slate-700" style={cellStyle(r.trust_score, maxTrust)}>{r.trust_score}</td>
-                <td className="p-2 border-b border-slate-700" style={cellStyle(metricIndex("Faithfulness")(r), maxFaith)}>{metricIndex("Faithfulness")(r)}</td>
-                <td className="p-2 border-b border-slate-700" style={cellStyle(metricIndex("Relevance")(r), maxRel)}>{metricIndex("Relevance")(r)}</td>
-                <td className="p-2 border-b border-slate-700" style={cellStyle(metricIndex("Bias")(r), maxBias)}>{metricIndex("Bias")(r)}</td>
-                <td className="p-2 border-b border-slate-700" style={cellStyle(metricIndex("Toxicity")(r), maxTox)}>{metricIndex("Toxicity")(r)}</td>
-                <td className="p-2 border-b border-slate-700" style={cellStyle(metricIndex("Factual")(r), maxFact)}>{metricIndex("Factual")(r)}</td>
+    <Card className="mt-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold text-white">Comparison Table</h2>
+          {winnerModel && (
+            <Badge className="bg-[#10b981] text-white flex items-center gap-1">
+              <Trophy className="h-3 w-3" />
+              Winner: {winnerModel.model}
+            </Badge>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="border-b-2 border-slate-700">
+                <th className="text-left p-4 text-sm font-semibold text-slate-300 uppercase tracking-wide">
+                  Model
+                </th>
+                <th className="text-center p-4 text-sm font-semibold text-slate-300 uppercase tracking-wide">
+                  TrustScore
+                </th>
+                <th className="text-center p-4 text-sm font-semibold text-slate-300 uppercase tracking-wide">
+                  Faithfulness
+                </th>
+                <th className="text-center p-4 text-sm font-semibold text-slate-300 uppercase tracking-wide">
+                  Relevance
+                </th>
+                <th className="text-center p-4 text-sm font-semibold text-slate-300 uppercase tracking-wide">
+                  Bias
+                </th>
+                <th className="text-center p-4 text-sm font-semibold text-slate-300 uppercase tracking-wide">
+                  Toxicity
+                </th>
+                <th className="text-center p-4 text-sm font-semibold text-slate-300 uppercase tracking-wide">
+                  Factual
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+            </thead>
+            <tbody>
+              {rows.map((r, idx) => (
+                <tr
+                  key={r.model}
+                  className={cn(
+                    "border-b border-slate-700/50 transition-colors duration-200",
+                    idx % 2 === 0 ? "bg-[#1e293b]/50" : "bg-[#1e293b]/30",
+                    "hover:bg-[#334155]/50"
+                  )}
+                >
+                  <td className="p-4">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-white">{r.model}</span>
+                      {r.trust_score === maxTrust && maxTrust > 0 && (
+                        <Trophy className="h-4 w-4 text-[#10b981]" />
+                      )}
+                      {r.error && (
+                        <Badge className="bg-[#ef4444] text-white text-xs flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3" />
+                          Error
+                        </Badge>
+                      )}
+                    </div>
+                  </td>
+                  <td className={cn("p-4 text-center font-bold text-lg border-l-2 border-r-2 border-slate-700/50", getCellStyle(r.trust_score, maxTrust), getScoreColor(r.trust_score))}>
+                    {r.trust_score.toFixed(1)}
+                  </td>
+                  <td className={cn("p-4 text-center", getCellStyle(metricIndex("Faithfulness")(r), maxFaith))}>
+                    {metricIndex("Faithfulness")(r).toFixed(1)}
+                  </td>
+                  <td className={cn("p-4 text-center", getCellStyle(metricIndex("Relevance")(r), maxRel))}>
+                    {metricIndex("Relevance")(r).toFixed(1)}
+                  </td>
+                  <td className={cn("p-4 text-center", getCellStyle(metricIndex("Bias")(r), maxBias))}>
+                    {metricIndex("Bias")(r).toFixed(1)}
+                  </td>
+                  <td className={cn("p-4 text-center", getCellStyle(metricIndex("Toxicity")(r), maxTox))}>
+                    {metricIndex("Toxicity")(r).toFixed(1)}
+                  </td>
+                  <td className={cn("p-4 text-center", getCellStyle(metricIndex("Factual")(r), maxFact))}>
+                    {metricIndex("Factual")(r).toFixed(1)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
-
-const thStyle: React.CSSProperties = {
-  padding: 8,
-  borderBottom: "1px solid #1f2937",
-  textAlign: "center",
-};
-

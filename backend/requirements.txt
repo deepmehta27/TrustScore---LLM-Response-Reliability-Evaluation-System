@@ -6,3 +6,5 @@ datasets
 aiohttp
 pydantic
 google-genai
+anthropic
+httpx

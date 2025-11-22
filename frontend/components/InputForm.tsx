@@ -3,6 +3,10 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader } from "./ui/card";
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
+import { Select } from "./ui/select";
+import { Checkbox } from "./ui/checkbox";
+import { cn } from "../lib/cn";
+import { Heart, DollarSign, MessageSquare, Play, CheckCircle2, Loader2 } from "lucide-react";
 
 type Props = {
   isLoading: boolean;
@@ -28,11 +32,20 @@ const DEMOS = {
   },
 };
 
+const AVAILABLE_MODELS = [
+  { id: "gpt-4.1", label: "GPT-4.1", provider: "OpenAI" },
+  { id: "gpt-5.1", label: "GPT-5.1", provider: "OpenAI" },
+  { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash", provider: "Google" },
+  { id: "deepseek/deepseek-chat-v3-0324:free", label: "DeepSeek Chat v3", provider: "OpenRouter (Free)" },
+  { id: "claude-sonnet-4-5-20250929", label: "Claude 4.5 Sonnet", provider: "Anthropic" },
+];
+
 export default function InputForm({ isLoading, onCompare }: Props) {
   const [query, setQuery] = useState("");
   const [context, setContext] = useState("");
   const [preset, setPreset] = useState("general");
   const [selectedModels, setSelectedModels] = useState<string[]>(["gpt-4.1", "gpt-5.1"]);
+  const [activeDemo, setActiveDemo] = useState<string | null>(null);
 
   function toggleModel(id: string) {
     setSelectedModels((prev) => (prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]));
@@ -42,62 +55,198 @@ export default function InputForm({ isLoading, onCompare }: Props) {
     const d = DEMOS[key];
     setQuery(d.query);
     setContext(d.context);
+    setActiveDemo(key);
     if (key === "healthcare") setPreset("healthcare");
     if (key === "finance") setPreset("finance");
     if (key === "support") setPreset("general");
+    
+    // Show brief feedback
+    setTimeout(() => setActiveDemo(null), 2000);
   }
 
+  const canCompare = query.trim().length > 0 && selectedModels.length > 0 && !isLoading;
+
   return (
-    <Card>
+    <Card className="mb-8">
       <CardHeader>
-        <div className="font-bold">Model Comparison</div>
+        <h2 className="text-xl font-bold text-white">Model Comparison</h2>
+        <p className="text-sm text-slate-400 mt-1">
+          Configure your evaluation query and select models to compare
+        </p>
       </CardHeader>
-      <CardContent>
-        <div className="flex gap-2 mb-3">
-          <Button onClick={() => applyDemo("healthcare")}>Healthcare Demo</Button>
-          <Button onClick={() => applyDemo("finance")}>Finance Demo</Button>
-          <Button onClick={() => applyDemo("support")}>Customer Support Demo</Button>
+      <CardContent className="space-y-6">
+        {/* Demo Preset Tabs */}
+        <div>
+          <label className="block text-sm font-medium text-white mb-3">
+            Quick Start Demos
+          </label>
+          <div className="inline-flex gap-1 rounded-lg bg-[#1e293b] p-1 border border-slate-700">
+            <button
+              type="button"
+              onClick={() => applyDemo("healthcare")}
+              className={cn(
+                "inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all duration-200",
+                activeDemo === "healthcare"
+                  ? "bg-[#10b981] text-white shadow-md"
+                  : "text-slate-300 hover:text-white hover:bg-[#334155]"
+              )}
+            >
+              <Heart className="h-4 w-4" />
+              Healthcare
+            </button>
+            <button
+              type="button"
+              onClick={() => applyDemo("finance")}
+              className={cn(
+                "inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all duration-200",
+                activeDemo === "finance"
+                  ? "bg-[#10b981] text-white shadow-md"
+                  : "text-slate-300 hover:text-white hover:bg-[#334155]"
+              )}
+            >
+              <DollarSign className="h-4 w-4" />
+              Finance
+            </button>
+            <button
+              type="button"
+              onClick={() => applyDemo("support")}
+              className={cn(
+                "inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all duration-200",
+                activeDemo === "support"
+                  ? "bg-[#10b981] text-white shadow-md"
+                  : "text-slate-300 hover:text-white hover:bg-[#334155]"
+              )}
+            >
+              <MessageSquare className="h-4 w-4" />
+              Customer Support
+            </button>
+          </div>
         </div>
 
-        <div className="font-semibold">Query</div>
-        <Textarea value={query} onChange={(e) => setQuery(e.target.value)} rows={3} />
+        {/* Query Input */}
+        <div>
+          <label htmlFor="query" className="block text-sm font-medium text-white mb-2">
+            Query <span className="text-[#ef4444]">*</span>
+          </label>
+          <p className="text-xs text-slate-400 mb-2">
+            Enter the question or prompt you want to evaluate
+          </p>
+          <Textarea
+            id="query"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            rows={4}
+            placeholder="e.g., What are the side effects of this medication?"
+            className="min-h-[120px]"
+          />
+        </div>
 
-        <div className="font-semibold mt-3">Context</div>
-        <Textarea value={context} onChange={(e) => setContext(e.target.value)} rows={3} />
+        {/* Context Input */}
+        <div>
+          <label htmlFor="context" className="block text-sm font-medium text-white mb-2">
+            Context <span className="text-slate-400 text-xs">(Optional)</span>
+          </label>
+          <p className="text-xs text-slate-400 mb-2">
+            Provide relevant context or background information for evaluation
+          </p>
+          <Textarea
+            id="context"
+            value={context}
+            onChange={(e) => setContext(e.target.value)}
+            rows={5}
+            placeholder="e.g., Clinical guidelines, documentation, or reference material..."
+            className="min-h-[150px]"
+          />
+        </div>
 
-        <div className="flex items-center gap-3 mt-3">
-          <div className="font-semibold">Preset</div>
-          <select value={preset} onChange={(e) => setPreset(e.target.value)} className="rounded-md border border-slate-700 bg-slate-900 p-2">
+        {/* Preset Dropdown */}
+        <div>
+          <label htmlFor="preset" className="block text-sm font-medium text-white mb-2">
+            Industry Preset
+          </label>
+          <p className="text-xs text-slate-400 mb-2">
+            Select the evaluation preset that best matches your use case
+          </p>
+          <Select
+            id="preset"
+            value={preset}
+            onChange={(e) => setPreset(e.target.value)}
+          >
             <option value="healthcare">Healthcare</option>
             <option value="finance">Finance</option>
             <option value="general">General</option>
-          </select>
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-semibold mr-2">Models:</span>
-            {[
-              { id: "gpt-4.1", label: "GPT-4.1" },
-              { id: "gpt-5.1", label: "GPT-5.1" },
-              { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
-            ].map((m) => (
-              <Button
-                key={m.id}
-                onClick={() => toggleModel(m.id)}
-                variant={selectedModels.includes(m.id) ? "secondary" : "outline"}
+          </Select>
+        </div>
+
+        {/* Model Selection */}
+        <div>
+          <label className="block text-sm font-medium text-white mb-3">
+            Select Models <span className="text-[#ef4444]">*</span>
+          </label>
+          <p className="text-xs text-slate-400 mb-3">
+            {selectedModels.length} {selectedModels.length === 1 ? "model" : "models"} selected
+          </p>
+          <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
+            {AVAILABLE_MODELS.map((model) => (
+              <div
+                key={model.id}
+                className={`
+                  flex items-center justify-between p-4 rounded-lg border-2 transition-all duration-200 cursor-pointer
+                  ${selectedModels.includes(model.id)
+                    ? "border-[#10b981] bg-[#10b981]/10 hover:bg-[#10b981]/15"
+                    : "border-slate-700 bg-[#334155] hover:border-slate-600 hover:bg-[#475569]"
+                  }
+                `}
+                onClick={() => toggleModel(model.id)}
               >
-                {m.label}
-              </Button>
+                <div className="flex items-center gap-3 flex-1">
+                  <Checkbox
+                    checked={selectedModels.includes(model.id)}
+                    onChange={() => toggleModel(model.id)}
+                    label=""
+                    className="pointer-events-none"
+                  />
+                  <div>
+                    <div className="text-sm font-medium text-white">{model.label}</div>
+                    <div className="text-xs text-slate-400">{model.provider}</div>
+                  </div>
+                </div>
+                {selectedModels.includes(model.id) && (
+                  <CheckCircle2 className="h-5 w-5 text-[#10b981]" />
+                )}
+              </div>
             ))}
-            <Button
-              disabled={!query || selectedModels.length === 0 || isLoading}
-              onClick={() => onCompare({ query, models: selectedModels, context, preset })}
-            >
-              {isLoading ? "Comparing…" : "Compare Models"}
-            </Button>
           </div>
+        </div>
+
+        {/* Compare Button */}
+        <div className="pt-4">
+          <Button
+            size="xl"
+            disabled={!canCompare}
+            onClick={() => onCompare({ query, models: selectedModels, context, preset })}
+            className="w-full"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin" />
+                Evaluating models...
+              </>
+            ) : (
+              <>
+                <Play className="h-5 w-5" />
+                Compare Models
+              </>
+            )}
+          </Button>
+          {!canCompare && (
+            <p className="text-xs text-slate-400 mt-2 text-center">
+              {!query.trim() && "Please enter a query. "}
+              {selectedModels.length === 0 && "Please select at least one model."}
+            </p>
+          )}
         </div>
       </CardContent>
     </Card>
   );
 }
-
-const labelStyle: React.CSSProperties = { fontWeight: 600, marginTop: 8 };
