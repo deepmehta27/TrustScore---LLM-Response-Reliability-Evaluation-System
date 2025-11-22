@@ -400,3 +400,15 @@ async def compare_models(request: CompareRequest):
 
     return CompareResponse(results=list(results))
 
+@app.get("/")
+async def root():
+    return {
+        "message": "TrustScore API is running",
+        "version": "0.1.0",
+        "docs": "/docs",
+        "endpoints": {
+            "compare": "/compare",
+            "evaluate": "/evaluate",
+            "presets": "/presets"
+        }
+    }
