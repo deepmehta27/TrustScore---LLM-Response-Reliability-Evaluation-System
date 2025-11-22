@@ -4,18 +4,18 @@ from typing import List, Dict
 # Industry presets determine relative importance of each metric.
 PRESETS: Dict[str, Dict[str, float]] = {
     "healthcare": {
-        "faithfulness": 0.40,
+        "faithfulness": 0.35,  # Changed from 0.40
+        "factual": 0.25,       # Changed from 0.10
         "relevance": 0.20,
         "bias": 0.15,
-        "toxicity": 0.15,
-        "factual": 0.10,
+        "toxicity": 0.05,      # Changed from 0.15
     },
     "finance": {
+        "bias": 0.30,
         "faithfulness": 0.25,
         "relevance": 0.20,
-        "bias": 0.30,
-        "toxicity": 0.10,
         "factual": 0.15,
+        "toxicity": 0.10,
     },
     "general": {
         "faithfulness": 0.30,

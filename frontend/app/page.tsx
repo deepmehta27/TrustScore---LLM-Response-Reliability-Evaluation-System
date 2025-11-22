@@ -55,6 +55,7 @@ export default function Page() {
                   metrics={r.metrics}
                   explanation={r.explanation || ""}
                   preset={lastPreset}
+                  response={r.response}
                 />
               ))}
             </div>

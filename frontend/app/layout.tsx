@@ -3,12 +3,14 @@ export const metadata = {
   description: "LLM Response Reliability Evaluation",
 };
 
+import "./globals.css";
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <head />
-      <body style={{ margin: 0, fontFamily: 'system-ui, Arial, sans-serif', background: '#0f172a', color: '#e2e8f0' }}>
-        <div style={{ maxWidth: 960, margin: '0 auto', padding: 24 }}>{children}</div>
+      <body className="bg-slate-900 text-slate-200">
+        <div className="max-w-5xl mx-auto p-6">{children}</div>
       </body>
     </html>
   );

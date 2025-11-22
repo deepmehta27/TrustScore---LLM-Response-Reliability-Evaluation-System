@@ -1,4 +1,7 @@
 import { badgeForScore } from "../lib/utils";
+import { Card, CardContent, CardHeader } from "./ui/card";
+import { Badge } from "./ui/badge";
+import { Progress } from "./ui/progress";
 
 type Metric = { name: string; score: number; description: string };
 
@@ -7,45 +10,51 @@ export default function ScoreCard({
   metrics,
   explanation,
   preset,
+  response,
 }: {
   trustScore: number;
   metrics: Metric[];
   explanation: string;
   preset: string;
+  response?: string;
 }) {
   const badge = badgeForScore(trustScore);
   return (
-    <div style={{ background: "#111827", padding: 20, borderRadius: 12, border: "1px solid #334155" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div>
-          <div style={{ fontSize: 14, opacity: 0.7 }}>Preset: {preset}</div>
-          <div style={{ fontSize: 36, fontWeight: 800 }}>TrustScore: {trustScore}</div>
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-sm opacity-70">Preset: {preset}</div>
+            <div className="text-3xl font-extrabold">TrustScore: {trustScore}</div>
+          </div>
+          <Badge className="bg-red-500 text-slate-900" style={{ background: badge.bg, color: badge.fg }}>{badge.label}</Badge>
         </div>
-        <span style={{ padding: "8px 12px", borderRadius: 999, background: badge.bg, color: badge.fg, fontWeight: 700 }}>
-          {badge.label}
-        </span>
-      </div>
+      </CardHeader>
+      <CardContent>
 
-      <div style={{ marginTop: 16 }}>
+      {response && (
+        <div className="mt-3">
+          <div className="font-bold mb-2">Model Response</div>
+          <div className="whitespace-pre-wrap bg-slate-900 border border-slate-700 rounded-md p-3">{response}</div>
+        </div>
+      )}
+
+      <div className="mt-4">
         {metrics.map((m) => (
-          <div key={m.name} style={{ marginBottom: 12 }}>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <div style={{ fontWeight: 600 }}>{m.name}</div>
-              <div style={{ opacity: 0.8 }}>{m.score}</div>
-            </div>
-            <div style={{ height: 8, background: "#1f2937", borderRadius: 8 }}>
-              <div style={{ width: `${m.score}%`, height: 8, background: "#22c55e", borderRadius: 8 }} />
-            </div>
-            <div style={{ fontSize: 12, opacity: 0.8, marginTop: 4 }}>{m.description}</div>
+          <div key={m.name} className="mb-3">
+            <div className="flex justify-between"><div className="font-semibold">{m.name}</div><div className="opacity-80">{m.score}</div></div>
+            <Progress value={m.score} />
+            <div className="text-xs opacity-80 mt-1">{m.description}</div>
           </div>
         ))}
       </div>
 
-      <div style={{ marginTop: 16 }}>
-        <div style={{ fontWeight: 700, marginBottom: 6 }}>Explanation</div>
-        <div style={{ opacity: 0.9 }}>{explanation}</div>
+      <div className="mt-4">
+        <div className="font-bold mb-2">Explanation</div>
+        <div className="opacity-90">{explanation}</div>
       </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 

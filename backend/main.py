@@ -21,6 +21,17 @@ try:
 except Exception:
     OpenAI = None
 
+try:
+    from google import genai
+except Exception:
+    genai = None
+
+try:
+    import dotenv
+    dotenv.load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+except Exception:
+    pass
+
 
 app = FastAPI(title="TrustScore API", version="0.1.0")
 
@@ -146,36 +157,59 @@ async def evaluate_response(request: EvalRequest):
 
 
 async def generate_model_response(query: str, model: str) -> str:
-    if not (OpenAI and os.getenv("OPENAI_API_KEY")):
+    if not (OpenAI and os.getenv("OPENAI_API_KEY")) and not (genai and os.getenv("GEMINI_API_KEY")):
         return f"[Stubbed response for {model}] {query}"
     try:
-        client = OpenAI()
+        if model.startswith("gemini") and genai and (os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")):
+            api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+            gclient = genai.Client(api_key=api_key) if api_key else genai.Client()
 
-        def _call():
-            if model == "gpt-5.1":
-                return client.chat.completions.create(
-                    model="gpt-5.1",
-                    messages=[{"role": "user", "content": query}],
-                    response_format={"type": "text"},
-                    verbosity="medium",
-                    reasoning_effort="medium",
-                    store=False,
-                )
-            else:
-                return client.chat.completions.create(
-                    model=model,
-                    messages=[{"role": "user", "content": query}],
-                    response_format={"type": "text"},
-                    temperature=1,
-                    max_completion_tokens=2048,
-                    top_p=1,
-                    frequency_penalty=0,
-                    presence_penalty=0,
-                    store=False,
-                )
+            def _gcall():
+                return gclient.models.generate_content(model=model, contents=query)
 
-        completion = await asyncio.to_thread(_call)
-        return completion.choices[0].message.content or ""
+            gresp = await asyncio.to_thread(_gcall)
+            text = getattr(gresp, "text", "")
+            if not text:
+                try:
+                    # Fallback to extracting from candidates
+                    cand = (getattr(gresp, "candidates", None) or [None])[0]
+                    content = getattr(cand, "content", None)
+                    parts = getattr(content, "parts", None) or []
+                    for p in parts:
+                        if hasattr(p, "text") and p.text:
+                            text = p.text
+                            break
+                except Exception:
+                    pass
+            return text or ""
+        else:
+            oclient = OpenAI()
+
+            def _ocall():
+                if model == "gpt-5.1":
+                    return oclient.chat.completions.create(
+                        model="gpt-5.1",
+                        messages=[{"role": "user", "content": query}],
+                        response_format={"type": "text"},
+                        verbosity="medium",
+                        reasoning_effort="medium",
+                        store=False,
+                    )
+                else:
+                    return oclient.chat.completions.create(
+                        model=model,
+                        messages=[{"role": "user", "content": query}],
+                        response_format={"type": "text"},
+                        temperature=1,
+                        max_completion_tokens=2048,
+                        top_p=1,
+                        frequency_penalty=0,
+                        presence_penalty=0,
+                        store=False,
+                    )
+
+            completion = await asyncio.to_thread(_ocall)
+            return completion.choices[0].message.content or ""
     except Exception as e:
         return f"[ERROR] {e.__class__.__name__}: {e}"
 
@@ -209,7 +243,7 @@ async def compare_models(request: CompareRequest):
                 {"name": "Toxicity", "score": 0.0, "description": "Model response error"},
                 {"name": "Factual", "score": 0.0, "description": "Model response error"},
             ]
-            explanation = "Model call failed; metrics set to 0 for reliability."
+            explanation = f"Model call failed; metrics set to 0. Details: {error}"
         else:
             metrics = await asyncio.gather(*eval_tasks)
             explanation = await generate_explanation(metrics)

@@ -30,38 +30,36 @@ export default function ComparisonTable({ data }: { data: { results: Row[] } }) 
   });
 
   return (
-    <div style={{ background: "#111827", padding: 16, borderRadius: 12, border: "1px solid #334155" }}>
-      <div style={{ fontWeight: 700, marginBottom: 8 }}>Model Comparison</div>
-      <div style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+    <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
+      <div className="font-bold mb-2">Model Comparison</div>
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse">
           <thead>
-            <tr>
-              <th style={thStyle}>Model</th>
-              <th style={thStyle}>TrustScore</th>
-              <th style={thStyle}>Faithfulness</th>
-              <th style={thStyle}>Relevance</th>
-              <th style={thStyle}>Bias</th>
-              <th style={thStyle}>Toxicity</th>
-              <th style={thStyle}>Factual</th>
+            <tr className="text-center">
+              <th className="p-2 border-b border-slate-700">Model</th>
+              <th className="p-2 border-b border-slate-700">TrustScore</th>
+              <th className="p-2 border-b border-slate-700">Faithfulness</th>
+              <th className="p-2 border-b border-slate-700">Relevance</th>
+              <th className="p-2 border-b border-slate-700">Bias</th>
+              <th className="p-2 border-b border-slate-700">Toxicity</th>
+              <th className="p-2 border-b border-slate-700">Factual</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((r) => (
               <tr key={r.model}>
-                <td style={{ padding: 8, borderBottom: "1px solid #1f2937" }}>
+                <td className="p-2 border-b border-slate-700">
                   {r.model}
                   {r.error && (
-                    <span style={{ marginLeft: 8, padding: "2px 6px", borderRadius: 6, background: "#ef4444", color: "#0f172a", fontWeight: 800 }}>
-                      Error
-                    </span>
+                    <span className="ml-2 px-2 py-1 rounded bg-red-500 text-slate-900 font-bold">Error</span>
                   )}
                 </td>
-                <td style={cellStyle(r.trust_score, maxTrust)}>{r.trust_score}</td>
-                <td style={cellStyle(metricIndex("Faithfulness")(r), maxFaith)}>{metricIndex("Faithfulness")(r)}</td>
-                <td style={cellStyle(metricIndex("Relevance")(r), maxRel)}>{metricIndex("Relevance")(r)}</td>
-                <td style={cellStyle(metricIndex("Bias")(r), maxBias)}>{metricIndex("Bias")(r)}</td>
-                <td style={cellStyle(metricIndex("Toxicity")(r), maxTox)}>{metricIndex("Toxicity")(r)}</td>
-                <td style={cellStyle(metricIndex("Factual")(r), maxFact)}>{metricIndex("Factual")(r)}</td>
+                <td className="p-2 border-b border-slate-700" style={cellStyle(r.trust_score, maxTrust)}>{r.trust_score}</td>
+                <td className="p-2 border-b border-slate-700" style={cellStyle(metricIndex("Faithfulness")(r), maxFaith)}>{metricIndex("Faithfulness")(r)}</td>
+                <td className="p-2 border-b border-slate-700" style={cellStyle(metricIndex("Relevance")(r), maxRel)}>{metricIndex("Relevance")(r)}</td>
+                <td className="p-2 border-b border-slate-700" style={cellStyle(metricIndex("Bias")(r), maxBias)}>{metricIndex("Bias")(r)}</td>
+                <td className="p-2 border-b border-slate-700" style={cellStyle(metricIndex("Toxicity")(r), maxTox)}>{metricIndex("Toxicity")(r)}</td>
+                <td className="p-2 border-b border-slate-700" style={cellStyle(metricIndex("Factual")(r), maxFact)}>{metricIndex("Factual")(r)}</td>
               </tr>
             ))}
           </tbody>
