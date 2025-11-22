@@ -41,6 +41,24 @@ if not os.path.exists(DATA_PATH):
         json.dump([], f)
 
 
+def _load_env_file():
+    env_path = os.path.join(os.path.dirname(__file__), ".env")
+    if os.path.exists(env_path):
+        try:
+            with open(env_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    s = line.strip()
+                    if not s or s.startswith("#"):
+                        continue
+                    if "=" in s:
+                        k, v = s.split("=", 1)
+                        os.environ.setdefault(k.strip(), v.strip())
+        except Exception:
+            pass
+
+_load_env_file()
+
+
 async def append_result(result: Dict) -> None:
     # Simple JSON file storage for hackathon demo; not concurrency-safe for production.
     try:
@@ -54,29 +72,31 @@ async def append_result(result: Dict) -> None:
 
 
 async def generate_explanation(metrics: List[Dict]) -> str:
-    """Create a concise explanation summarizing metric outcomes.
-    Uses GPT for humanized text when available; else constructs a deterministic summary.
-    """
-    api_key = os.getenv("OPENAI_API_KEY")
-    if OpenAI and api_key:
+    if OpenAI and os.getenv("OPENAI_API_KEY"):
         try:
-            client = OpenAI(api_key=api_key)
-            bullet_lines = "\n".join(
-                [f"- {m['name']}: {m['score']} ({m['description']})" for m in metrics]
-            )
-            completion = await client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "Summarize reliability metrics into a single coherent explanation (3-4 sentences).",
-                    },
-                    {
-                        "role": "user",
-                        "content": f"Metrics summary:\n{bullet_lines}",
-                    },
-                ],
-            )
+            client = OpenAI()
+            bullet_lines = "\n".join([f"- {m['name']}: {m['score']} ({m['description']})" for m in metrics])
+
+            def _call():
+                return client.chat.completions.create(
+                    model="gpt-4.1",
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "Summarize reliability metrics into a single coherent explanation (3-4 sentences).",
+                        },
+                        {"role": "user", "content": f"Metrics summary:\n{bullet_lines}"},
+                    ],
+                    response_format={"type": "text"},
+                    temperature=1,
+                    max_completion_tokens=2048,
+                    top_p=1,
+                    frequency_penalty=0,
+                    presence_penalty=0,
+                    store=False,
+                )
+
+            completion = await asyncio.to_thread(_call)
             return completion.choices[0].message.content or "Evaluation summary unavailable"
         except Exception:
             pass
@@ -126,20 +146,38 @@ async def evaluate_response(request: EvalRequest):
 
 
 async def generate_model_response(query: str, model: str) -> str:
-    """Ask the specified OpenAI model to answer the query."""
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not (OpenAI and api_key):
-        # Fallback stub response when API key is not configured.
+    if not (OpenAI and os.getenv("OPENAI_API_KEY")):
         return f"[Stubbed response for {model}] {query}"
     try:
-        client = OpenAI(api_key=api_key)
-        completion = await client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": query}],
-        )
+        client = OpenAI()
+
+        def _call():
+            if model == "gpt-5.1":
+                return client.chat.completions.create(
+                    model="gpt-5.1",
+                    messages=[{"role": "user", "content": query}],
+                    response_format={"type": "text"},
+                    verbosity="medium",
+                    reasoning_effort="medium",
+                    store=False,
+                )
+            else:
+                return client.chat.completions.create(
+                    model=model,
+                    messages=[{"role": "user", "content": query}],
+                    response_format={"type": "text"},
+                    temperature=1,
+                    max_completion_tokens=2048,
+                    top_p=1,
+                    frequency_penalty=0,
+                    presence_penalty=0,
+                    store=False,
+                )
+
+        completion = await asyncio.to_thread(_call)
         return completion.choices[0].message.content or ""
-    except Exception:
-        return ""
+    except Exception as e:
+        return f"[ERROR] {e.__class__.__name__}: {e}"
 
 
 @app.post("/compare", response_model=CompareResponse)
@@ -155,19 +193,36 @@ async def compare_models(request: CompareRequest):
     # Evaluate each response concurrently.
     async def evaluate_one(model: str, response_text: str):
         eval_tasks = [
-            evaluate_faithfulness(request.query, response_text, ""),
+            evaluate_faithfulness(request.query, response_text, request.context or ""),
             evaluate_relevance(request.query, response_text),
             evaluate_bias(response_text),
             evaluate_toxicity(response_text),
-            evaluate_factual(response_text, ""),
+            evaluate_factual(response_text, request.context or ""),
         ]
-        metrics = await asyncio.gather(*eval_tasks)
-        trust_score = calculate_weighted_score(metrics, PRESETS["general"])  # default preset
+        error = None
+        if response_text.strip().startswith("[ERROR]"):
+            error = response_text.strip()
+            metrics = [
+                {"name": "Faithfulness", "score": 0.0, "description": "Model response error"},
+                {"name": "Relevance", "score": 0.0, "description": "Model response error"},
+                {"name": "Bias", "score": 0.0, "description": "Model response error"},
+                {"name": "Toxicity", "score": 0.0, "description": "Model response error"},
+                {"name": "Factual", "score": 0.0, "description": "Model response error"},
+            ]
+            explanation = "Model call failed; metrics set to 0 for reliability."
+        else:
+            metrics = await asyncio.gather(*eval_tasks)
+            explanation = await generate_explanation(metrics)
+
+        preset_key = request.preset if request.preset in PRESETS else "general"
+        trust_score = calculate_weighted_score(metrics, PRESETS[preset_key])
         return ModelComparison(
             model=model,
             response=response_text,
             trust_score=trust_score,
             metrics=[MetricResult(**m) for m in metrics],
+            error=error,
+            explanation=explanation,
         )
 
     results = await asyncio.gather(

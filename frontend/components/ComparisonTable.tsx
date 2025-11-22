@@ -5,6 +5,7 @@ type Row = {
   response: string;
   trust_score: number;
   metrics: Metric[];
+  error?: string | null;
 };
 
 export default function ComparisonTable({ data }: { data: { results: Row[] } }) {
@@ -47,7 +48,14 @@ export default function ComparisonTable({ data }: { data: { results: Row[] } }) 
           <tbody>
             {rows.map((r) => (
               <tr key={r.model}>
-                <td style={{ padding: 8, borderBottom: "1px solid #1f2937" }}>{r.model}</td>
+                <td style={{ padding: 8, borderBottom: "1px solid #1f2937" }}>
+                  {r.model}
+                  {r.error && (
+                    <span style={{ marginLeft: 8, padding: "2px 6px", borderRadius: 6, background: "#ef4444", color: "#0f172a", fontWeight: 800 }}>
+                      Error
+                    </span>
+                  )}
+                </td>
                 <td style={cellStyle(r.trust_score, maxTrust)}>{r.trust_score}</td>
                 <td style={cellStyle(metricIndex("Faithfulness")(r), maxFaith)}>{metricIndex("Faithfulness")(r)}</td>
                 <td style={cellStyle(metricIndex("Relevance")(r), maxRel)}>{metricIndex("Relevance")(r)}</td>

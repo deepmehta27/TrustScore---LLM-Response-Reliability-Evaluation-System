@@ -3,8 +3,7 @@ import { useState } from "react";
 
 type Props = {
   isLoading: boolean;
-  onSubmit: (payload: { query: string; response: string; context: string; preset: string }) => Promise<void>;
-  onCompare: (query: string) => Promise<void>;
+  onCompare: (payload: { query: string; models: string[]; context: string; preset: string }) => Promise<void>;
 };
 
 const DEMOS = {
@@ -26,17 +25,20 @@ const DEMOS = {
   },
 };
 
-export default function InputForm({ isLoading, onSubmit, onCompare }: Props) {
+export default function InputForm({ isLoading, onCompare }: Props) {
   const [query, setQuery] = useState("");
-  const [response, setResponse] = useState("");
   const [context, setContext] = useState("");
   const [preset, setPreset] = useState("general");
+  const [selectedModels, setSelectedModels] = useState<string[]>(["gpt-4.1", "gpt-5.1"]);
+
+  function toggleModel(id: string) {
+    setSelectedModels((prev) => (prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]));
+  }
 
   function applyDemo(key: keyof typeof DEMOS) {
     const d = DEMOS[key];
     setQuery(d.query);
     setContext(d.context);
-    setResponse(d.response);
     if (key === "healthcare") setPreset("healthcare");
     if (key === "finance") setPreset("finance");
     if (key === "support") setPreset("general");
@@ -44,6 +46,9 @@ export default function InputForm({ isLoading, onSubmit, onCompare }: Props) {
 
   return (
     <div style={{ background: "#111827", padding: 16, borderRadius: 12, border: "1px solid #334155" }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+        <span style={{ fontWeight: 700 }}>Model Comparison</span>
+      </div>
       <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
         <button onClick={() => applyDemo("healthcare")} style={btnStyle}>Healthcare Demo</button>
         <button onClick={() => applyDemo("finance")} style={btnStyle}>Finance Demo</button>
@@ -52,9 +57,6 @@ export default function InputForm({ isLoading, onSubmit, onCompare }: Props) {
 
       <label style={labelStyle}>Query</label>
       <textarea value={query} onChange={(e) => setQuery(e.target.value)} style={taStyle} rows={3} />
-
-      <label style={labelStyle}>Response</label>
-      <textarea value={response} onChange={(e) => setResponse(e.target.value)} style={taStyle} rows={3} />
 
       <label style={labelStyle}>Context</label>
       <textarea value={context} onChange={(e) => setContext(e.target.value)} style={taStyle} rows={3} />
@@ -66,14 +68,32 @@ export default function InputForm({ isLoading, onSubmit, onCompare }: Props) {
           <option value="finance">Finance</option>
           <option value="general">General</option>
         </select>
-        <button
-          disabled={isLoading}
-          onClick={() => onSubmit({ query, response, context, preset })}
-          style={btnStyle}
-        >
-          {isLoading ? "Evaluating…" : "Evaluate"}
-        </button>
-        <button disabled={!query} onClick={() => onCompare(query)} style={btnSecondary}>Compare Models</button>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <span style={{ ...labelStyle, marginRight: 8 }}>Models:</span>
+          {[
+            { id: "gpt-4.1", label: "GPT-4.1" },
+            { id: "gpt-5.1", label: "GPT-5.1" },
+          ].map((m) => (
+            <button
+              key={m.id}
+              onClick={() => toggleModel(m.id)}
+              style={{
+                ...btnStyle,
+                background: selectedModels.includes(m.id) ? "#60a5fa" : "#334155",
+                color: selectedModels.includes(m.id) ? "#0f172a" : "#e2e8f0",
+              }}
+            >
+              {m.label}
+            </button>
+          ))}
+          <button
+            disabled={!query || selectedModels.length === 0 || isLoading}
+            onClick={() => onCompare({ query, models: selectedModels, context, preset })}
+            style={btnSecondary}
+          >
+            {isLoading ? "Comparing…" : "Compare Models"}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -108,4 +128,3 @@ const btnSecondary: React.CSSProperties = {
   ...btnStyle,
   background: "#60a5fa",
 };
-

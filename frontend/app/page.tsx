@@ -1,53 +1,33 @@
 "use client";
 import { useState } from "react";
 import InputForm from "../components/InputForm";
-import ScoreCard from "../components/ScoreCard";
 import ComparisonTable from "../components/ComparisonTable";
+import ScoreCard from "../components/ScoreCard";
 
 type Metric = { name: string; score: number; description: string };
 
 export default function Page() {
   const [isLoading, setIsLoading] = useState(false);
-  const [result, setResult] = useState<{
-    trust_score: number;
-    metrics: Metric[];
-    explanation: string;
-    preset?: string;
-  } | null>(null);
   const [compareData, setCompareData] = useState<any>(null);
+  const [lastPreset, setLastPreset] = useState<string>("general");
 
-  async function handleEvaluate(payload: { query: string; response: string; context: string; preset: string }) {
-    setIsLoading(true);
-    setResult(null);
-    try {
-      const res = await fetch("/api/evaluate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      setResult(data);
-    } catch (err) {
-      console.error(err);
-      alert("Evaluation failed. Ensure backend is running on http://localhost:8000.");
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function handleCompare(query: string) {
+  async function handleCompare(payload: { query: string; models: string[]; context: string; preset: string }) {
     setCompareData(null);
+    setIsLoading(true);
+    setLastPreset(payload.preset);
     try {
       const res = await fetch("/api/compare", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query, models: ["gpt-4o-mini", "gpt-3.5-turbo"] }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       setCompareData(data);
     } catch (err) {
       console.error(err);
       alert("Comparison failed. Ensure backend is running and OpenAI API key is set.");
+    } finally {
+      setIsLoading(false);
     }
   }
 
@@ -58,25 +38,27 @@ export default function Page() {
         Evaluate responses across faithfulness, relevance, bias, toxicity, and factual accuracy. Generates a unified 0–100 TrustScore.
       </p>
 
-      <InputForm isLoading={isLoading} onSubmit={handleEvaluate} onCompare={handleCompare} />
+      <InputForm isLoading={isLoading} onCompare={handleCompare} />
 
       {isLoading && (
-        <div style={{ marginTop: 16 }}>Evaluating… please wait</div>
-      )}
-
-      {result && (
-        <div style={{ marginTop: 24 }}>
-          <ScoreCard
-            trustScore={result.trust_score}
-            metrics={result.metrics}
-            explanation={result.explanation}
-            preset={result.preset || "general"}
-          />
-        </div>
+        <div style={{ marginTop: 16 }}>Comparing… please wait</div>
       )}
 
       {compareData && (
         <div style={{ marginTop: 24 }}>
+          {Array.isArray(compareData.results) && compareData.results.length > 0 && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16 }}>
+              {compareData.results.map((r: any) => (
+                <ScoreCard
+                  key={r.model}
+                  trustScore={r.trust_score}
+                  metrics={r.metrics}
+                  explanation={r.explanation || ""}
+                  preset={lastPreset}
+                />
+              ))}
+            </div>
+          )}
           <ComparisonTable data={compareData} />
         </div>
       )}

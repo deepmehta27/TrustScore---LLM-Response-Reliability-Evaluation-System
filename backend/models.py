@@ -24,6 +24,8 @@ class EvalResponse(BaseModel):
 class CompareRequest(BaseModel):
     query: str
     models: List[str] = Field(..., description="List of OpenAI model ids to compare")
+    context: str = ""
+    preset: str = "general"
 
 
 class ModelComparison(BaseModel):
@@ -31,6 +33,8 @@ class ModelComparison(BaseModel):
     response: str
     trust_score: float
     metrics: List[MetricResult]
+    error: str | None = None
+    explanation: str | None = None
 
 
 class CompareResponse(BaseModel):
