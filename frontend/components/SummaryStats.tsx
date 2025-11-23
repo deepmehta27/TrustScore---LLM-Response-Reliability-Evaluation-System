@@ -59,9 +59,15 @@ export default function SummaryStats({ results }: Props) {
                   <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-2">
                     {stat.label}
                   </p>
-                  <p className="text-4xl font-bold text-white mb-1">
-                    {stat.value}
-                  </p>
+                  {stat.label === "Top Model" ? (
+                    <p className="text-xl font-bold text-white mb-1 max-w-full truncate" title={String(stat.value)}>
+                      {String(stat.value)}
+                    </p>
+                  ) : (
+                    <p className="text-4xl font-bold text-white mb-1">
+                      {stat.value}
+                    </p>
+                  )}
                 </div>
                 <div className={`${stat.color} opacity-80`}>
                   <Icon className="h-6 w-6" />
