@@ -56,9 +56,6 @@ TrustScore supports evaluation across multiple leading AI providers:
 - **GPT-4.1** - Advanced reasoning and analysis
 - **GPT-5.1** - Latest generation with enhanced capabilities
 
-#### Anthropic Models
-- **Claude 3.5 Sonnet** - Balanced performance and safety
-
 #### Google Models
 - **Gemini 2.5 Flash** - Fast and efficient responses
 
@@ -437,3 +434,4 @@ For issues, questions, or contributions, please open an issue on [GitHub](https:
 **Built with ❤️ for Responsible AI**
 
 </div>
+
