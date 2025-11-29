@@ -1048,5 +1048,15 @@
     "count": 4,
     "preset": "general",
     "ts": 1764441912.0438206
+  },
+  {
+    "endpoint": "compare",
+    "mode": "parallel",
+    "total": 30.873364,
+    "gen": 20.532876,
+    "eval": 10.340488,
+    "count": 4,
+    "preset": "general",
+    "ts": 1764441942.9472194
   }
 ]
