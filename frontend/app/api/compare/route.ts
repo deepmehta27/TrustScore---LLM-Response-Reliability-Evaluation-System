@@ -2,8 +2,8 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
   const base = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
-
-    const response = await fetch(`${base}/compare`, {
+    const url = body?.mode ? `${base}/compare?mode=${encodeURIComponent(body.mode)}` : `${base}/compare`;
+    const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),

@@ -14,7 +14,7 @@ type Row = {
   error?: string | null;
 };
 
-export default function ComparisonTable({ data }: { data: { results: Row[] } }) {
+export default function ComparisonTable({ data, mode }: { data: { results: Row[] }, mode?: 'parallel' | 'sequential' }) {
   const rows = data.results || [];
   const maxBy = (selector: (r: Row) => number) => Math.max(...rows.map(selector));
   const maxTrust = rows.length ? maxBy((r) => r.trust_score) : 0;
@@ -47,7 +47,14 @@ export default function ComparisonTable({ data }: { data: { results: Row[] } }) 
     <Card className="mt-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <CardHeader>
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold text-white">Comparison Table</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl font-bold text-white">Comparison Table</h2>
+            {mode && (
+              <Badge variant={mode === 'parallel' ? 'secondary' : 'outline'}>
+                Mode: {mode}
+              </Badge>
+            )}
+          </div>
           {winnerModel && (
             <Badge className="bg-[#10b981] text-white flex items-center gap-1">
               <Trophy className="h-3 w-3" />

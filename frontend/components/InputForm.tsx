@@ -10,7 +10,7 @@ import { Heart, DollarSign, MessageSquare, Play, CheckCircle2, Loader2 } from "l
 
 type Props = {
   isLoading: boolean;
-  onCompare: (payload: { query: string; models: string[]; context: string; preset: string }) => Promise<void>;
+  onCompare: (payload: { query: string; models: string[]; context: string; preset: string; mode: 'parallel' | 'sequential' }) => Promise<void>;
 };
 
 const DEMOS = {
@@ -45,6 +45,7 @@ export default function InputForm({ isLoading, onCompare }: Props) {
   const [preset, setPreset] = useState("general");
   const [selectedModels, setSelectedModels] = useState<string[]>(["gpt-4.1", "gpt-5.1"]);
   const [activeDemo, setActiveDemo] = useState<string | null>(null);
+  const [mode, setMode] = useState<'parallel' | 'sequential'>('parallel');
 
   function toggleModel(id: string) {
     setSelectedModels((prev) => (prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]));
@@ -177,6 +178,18 @@ export default function InputForm({ isLoading, onCompare }: Props) {
           </Select>
         </div>
 
+        {/* Mode */}
+        <div>
+          <label htmlFor="mode" className="block text-sm font-medium text-white mb-2">
+            Execution Mode
+          </label>
+          <p className="text-xs text-slate-400 mb-2">Choose concurrent (parallel) or step-by-step (sequential) evaluation</p>
+          <Select id="mode" value={mode} onChange={(e) => setMode(e.target.value as any)}>
+            <option value="parallel">Parallel</option>
+            <option value="sequential">Sequential</option>
+          </Select>
+        </div>
+
         {/* Model Selection */}
         <div>
           <label className="block text-sm font-medium text-white mb-3">
@@ -223,7 +236,7 @@ export default function InputForm({ isLoading, onCompare }: Props) {
           <Button
             size="xl"
             disabled={!canCompare}
-            onClick={() => onCompare({ query, models: selectedModels, context, preset })}
+            onClick={() => onCompare({ query, models: selectedModels, context, preset, mode })}
             className="w-full"
           >
             {isLoading ? (

@@ -180,8 +180,9 @@ cd frontend
 # Install dependencies
 npm install
 
-# Create .env file (if needed)
-# BACKEND_URL=http://localhost:8000
+# Create .env.local
+echo "NEXT_PUBLIC_BACKEND_URL=http://localhost:8000" > .env.local
+echo "BACKEND_URL=http://localhost:8000" >> .env.local
 
 # Start the development server
 npm run dev
@@ -260,6 +261,7 @@ This will show you which API keys are detected and which are missing.
 5. **Click "Compare Models"**
    - Wait for evaluation to complete
    - View results in scorecards and comparison table
+   - The results header shows a badge indicating **Mode: parallel** or **Mode: sequential**
 
 ### Understanding Results
 
@@ -295,6 +297,36 @@ This will show you which API keys are detected and which are missing.
 
 ### Storage
 - **JSON file** - Simple file-based storage (`backend/data/results.json`)
+
+---
+
+## ⏱️ Latency Measurement (p50/p95)
+
+- Bench page:
+  - Open `http://localhost:3000/bench`
+  - Set Query/Context, choose **Mode** (`parallel` or `sequential`), choose **Runs** (e.g., 20–30)
+  - Click Run; the page shows `Runs`, `p50`, `p95`, `Last`, and a table of individual durations
+- Main compare flow:
+  - In the input form, set **Execution Mode**; after running, the comparison table header displays **Mode: parallel/sequential**
+- Suggested reporting:
+  - Record `p95` for both modes using the same query and models
+  - Compute speedup: `sequential_p95 / parallel_p95`
+  - Include sample size, e.g., “p95 21.37s (parallel, n=20) vs 25.01s (sequential, n=20)”
+
+### Alternative (Browser Network)
+- Open DevTools → Network
+- Trigger `Compare` multiple times with a fixed query and model set
+- Export timings; sort ascending and pick index `round(0.95*(n-1))` as p95
+
+---
+
+## 🔌 API Endpoints
+
+- `GET /` – Health check and docs link
+- `GET /presets` – Available industry presets and weights
+- `POST /evaluate` – Evaluate a single response
+- `POST /compare?mode=parallel|sequential` – Generate responses for multiple models and evaluate
+- `GET /stats` – Aggregate latency stats (p50/p95) collected server-side when enabled
 
 ---
 

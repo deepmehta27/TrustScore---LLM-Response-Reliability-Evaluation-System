@@ -1,6 +1,8 @@
 import os
 import json
 import asyncio
+import time
+from collections import defaultdict
 from typing import List, Dict
 
 from fastapi import FastAPI, HTTPException
@@ -85,9 +87,13 @@ app.add_middleware(
 
 
 DATA_PATH = os.path.join(os.path.dirname(__file__), "data", "results.json")
+METRICS_PATH = os.path.join(os.path.dirname(__file__), "data", "metrics.json")
 os.makedirs(os.path.dirname(DATA_PATH), exist_ok=True)
 if not os.path.exists(DATA_PATH):
     with open(DATA_PATH, "w", encoding="utf-8") as f:
+        json.dump([], f)
+if not os.path.exists(METRICS_PATH):
+    with open(METRICS_PATH, "w", encoding="utf-8") as f:
         json.dump([], f)
 
 
@@ -116,6 +122,17 @@ async def append_result(result: Dict) -> None:
             current = json.load(f)
         current.append(result)
         with open(DATA_PATH, "w", encoding="utf-8") as f:
+            json.dump(current, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
+
+def _append_metric(entry: Dict) -> None:
+    try:
+        with open(METRICS_PATH, "r", encoding="utf-8") as f:
+            current = json.load(f)
+        current.append(entry)
+        with open(METRICS_PATH, "w", encoding="utf-8") as f:
             json.dump(current, f, ensure_ascii=False, indent=2)
     except Exception:
         pass
@@ -166,7 +183,7 @@ async def evaluate_response(request: EvalRequest):
     if request.preset not in PRESETS:
         raise HTTPException(status_code=400, detail="Unknown preset")
 
-    # Run all evaluators concurrently.
+    t0 = time.perf_counter()
     tasks = [
         evaluate_faithfulness(request.query, request.response, request.context),
         evaluate_relevance(request.query, request.response),
@@ -175,10 +192,12 @@ async def evaluate_response(request: EvalRequest):
         evaluate_factual(request.response, request.context),
     ]
     metrics: List[Dict] = await asyncio.gather(*tasks)
+    t1 = time.perf_counter()
 
     weights = PRESETS[request.preset]
     trust_score = calculate_weighted_score(metrics, weights)
     explanation = await generate_explanation(metrics)
+    t2 = time.perf_counter()
 
     result = {
         "trust_score": trust_score,
@@ -187,6 +206,14 @@ async def evaluate_response(request: EvalRequest):
         "preset": request.preset,
     }
     await append_result(result)
+    _append_metric({
+        "endpoint": "evaluate",
+        "total": round(t2 - t0, 6),
+        "eval": round(t1 - t0, 6),
+        "explain": round(t2 - t1, 6),
+        "preset": request.preset,
+        "ts": time.time()
+    })
     # Cast dicts to pydantic models for response typing
     return EvalResponse(
         trust_score=trust_score,
@@ -358,16 +385,21 @@ async def generate_model_response(query: str, model: str) -> str:
 
 
 @app.post("/compare", response_model=CompareResponse)
-async def compare_models(request: CompareRequest):
+async def compare_models(request: CompareRequest, mode: str = "parallel"):
     if not request.models:
         raise HTTPException(status_code=400, detail="No models provided for comparison")
 
-    # Generate all model responses concurrently.
-    model_responses = await asyncio.gather(
-        *[generate_model_response(request.query, m) for m in request.models]
-    )
+    t0 = time.perf_counter()
+    if mode == "sequential":
+        model_responses = []
+        for m in request.models:
+            model_responses.append(await generate_model_response(request.query, m))
+    else:
+        model_responses = await asyncio.gather(
+            *[generate_model_response(request.query, m) for m in request.models]
+        )
+    t1 = time.perf_counter()
 
-    # Evaluate each response concurrently.
     async def evaluate_one(model: str, response_text: str):
         eval_tasks = [
             evaluate_faithfulness(request.query, response_text, request.context or ""),
@@ -388,7 +420,12 @@ async def compare_models(request: CompareRequest):
             ]
             explanation = f"Model call failed; metrics set to 0. Details: {error}"
         else:
-            metrics = await asyncio.gather(*eval_tasks)
+            if mode == "sequential":
+                metrics = []
+                for t in eval_tasks:
+                    metrics.append(await t)
+            else:
+                metrics = await asyncio.gather(*eval_tasks)
             explanation = await generate_explanation(metrics)
 
         preset_key = request.preset if request.preset in PRESETS else "general"
@@ -402,13 +439,29 @@ async def compare_models(request: CompareRequest):
             explanation=explanation,
         )
 
-    results = await asyncio.gather(
-        *[
-            evaluate_one(model, resp)
-            for model, resp in zip(request.models, model_responses)
-        ]
-    )
+    if mode == "sequential":
+        results = []
+        for model, resp in zip(request.models, model_responses):
+            results.append(await evaluate_one(model, resp))
+    else:
+        results = await asyncio.gather(
+            *[
+                evaluate_one(model, resp)
+                for model, resp in zip(request.models, model_responses)
+            ]
+        )
+    t2 = time.perf_counter()
 
+    _append_metric({
+        "endpoint": "compare",
+        "mode": mode,
+        "total": round(t2 - t0, 6),
+        "gen": round(t1 - t0, 6),
+        "eval": round(t2 - t1, 6),
+        "count": len(request.models),
+        "preset": request.preset if request.preset in PRESETS else "general",
+        "ts": time.time()
+    })
     return CompareResponse(results=list(results))
 
 @app.get("/")
@@ -423,3 +476,35 @@ async def root():
             "presets": "/presets"
         }
     }
+
+
+def _percentile(values: List[float], p: float) -> float:
+    if not values:
+        return 0.0
+    s = sorted(values)
+    i = max(0, min(len(s) - 1, int(round((p / 100.0) * (len(s) - 1)))))
+    return round(s[i], 6)
+
+
+@app.get("/stats")
+async def stats():
+    try:
+        with open(METRICS_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        data = []
+    groups = defaultdict(list)
+    for e in data:
+        key = e.get("endpoint")
+        if key == "compare":
+            key = f"compare:{e.get('mode','parallel')}"
+        groups[key].append(e)
+    out = {}
+    for k, entries in groups.items():
+        totals = [x.get("total", 0.0) for x in entries]
+        out[k] = {
+            "count": len(entries),
+            "p50": _percentile(totals, 50),
+            "p95": _percentile(totals, 95)
+        }
+    return out

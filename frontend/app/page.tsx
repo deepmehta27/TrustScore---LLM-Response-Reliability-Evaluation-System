@@ -14,11 +14,13 @@ export default function Page() {
   const [isLoading, setIsLoading] = useState(false);
   const [compareData, setCompareData] = useState<any>(null);
   const [lastPreset, setLastPreset] = useState<string>("general");
+  const [lastMode, setLastMode] = useState<'parallel' | 'sequential'>('parallel');
 
-  async function handleCompare(payload: { query: string; models: string[]; context: string; preset: string }) {
+  async function handleCompare(payload: { query: string; models: string[]; context: string; preset: string; mode: 'parallel' | 'sequential' }) {
     setCompareData(null);
     setIsLoading(true);
     setLastPreset(payload.preset);
+    setLastMode(payload.mode);
     try {
       const res = await fetch("/api/compare", {
         method: "POST",
@@ -105,9 +107,9 @@ export default function Page() {
           )}
 
           {/* Comparison Table */}
-          <ComparisonTable data={compareData} />
-        </div>
-      )}
+          <ComparisonTable data={compareData} mode={lastMode} />
+      </div>
+    )}
     </div>
   );
 }
