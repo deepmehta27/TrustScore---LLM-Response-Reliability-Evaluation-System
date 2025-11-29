@@ -16,6 +16,13 @@ FACT_CHECK_PROMPT = (
 
 
 async def evaluate_factual(response: str, context: str) -> Dict:
+    if os.getenv("DISABLE_EXTERNAL_CALLS", "").lower() == "true":
+        ctx_tokens = set(context.lower().split())
+        resp_tokens = set(response.lower().split())
+        overlap = len(ctx_tokens & resp_tokens)
+        denom = max(len(resp_tokens), 1)
+        heuristic = (overlap / denom) * 100
+        return {"name": "Factual", "score": round(heuristic, 2), "description": "Heuristic factuality (external disabled)"}
     if not context.strip():
         return {"name": "Factual", "score": 0.0, "description": "No context provided for factual assessment"}
     if OpenAI and os.getenv("OPENAI_API_KEY"):

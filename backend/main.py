@@ -139,6 +139,9 @@ def _append_metric(entry: Dict) -> None:
 
 
 async def generate_explanation(metrics: List[Dict]) -> str:
+    if os.getenv("DISABLE_EXTERNAL_CALLS", "").lower() == "true":
+        parts = [f"{m['name']}={m['score']}" for m in metrics]
+        return "; ".join(parts)
     if OpenAI and os.getenv("OPENAI_API_KEY"):
         try:
             client = OpenAI()
@@ -223,6 +226,8 @@ async def evaluate_response(request: EvalRequest):
 
 
 async def generate_model_response(query: str, model: str) -> str:
+    if os.getenv("DISABLE_EXTERNAL_CALLS", "").lower() == "true":
+        return f"[STUBBED] {query}"
     # Check if we have any API keys available
     openai_key = os.getenv("OPENAI_API_KEY")
     gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")

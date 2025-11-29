@@ -14,6 +14,18 @@ async def evaluate_faithfulness(query: str, response: str, context: str) -> Dict
     """Evaluate how well the response is grounded in the provided context.
     Uses RAGAS Faithfulness metric when available; falls back to heuristic if not.
     """
+    import os
+    if os.getenv("DISABLE_EXTERNAL_CALLS", "").lower() == "true":
+        ctx_tokens = set(context.lower().split())
+        resp_tokens = set(response.lower().split())
+        overlap = len(ctx_tokens & resp_tokens)
+        denom = max(len(resp_tokens), 1)
+        heuristic = (overlap / denom) * 100
+        return {
+            "name": "Faithfulness",
+            "score": round(heuristic, 2),
+            "description": "Heuristic groundedness (external disabled)",
+        }
     if Faithfulness and SingleTurnSample:
         try:
             sample = SingleTurnSample(
